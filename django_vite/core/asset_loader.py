@@ -231,6 +231,7 @@ class DjangoViteAppClient:
     def _get_dev_server_url(
         self,
         path: str,
+        static_resource: bool = True
     ) -> str:
         """
         Generates an URL to an asset served by the Vite development server.
@@ -241,14 +242,17 @@ class DjangoViteAppClient:
         Returns:
             str -- Full URL to the asset.
         """
-        static_url_base = urljoin(settings.STATIC_URL, self.static_url_prefix)
-        if not static_url_base.endswith("/"):
-            static_url_base += "/"
+        url_base = self.static_url_prefix
+        if (static_resource):
+            url_base = urljoin(settings.STATIC_URL, url_base)
+
+        if not url_base.endswith("/"):
+            url_base += "/"
 
         return urljoin(
             f"{self.dev_server_protocol}://"
             f"{self.dev_server_host}:{self.dev_server_port}",
-            urljoin(static_url_base, path),
+            urljoin(url_base, path),
         )
 
     def _get_production_server_url(self, path: str) -> str:
@@ -584,7 +588,7 @@ class DjangoViteAppClient:
         if not self.dev_mode:
             return ""
 
-        url = self._get_dev_server_url(self.ws_client_url)
+        url = self._get_dev_server_url(self.ws_client_url, False)
 
         return TagGenerator.script(
             url,
@@ -605,7 +609,7 @@ class DjangoViteAppClient:
         if not self.dev_mode:
             return ""
 
-        url = self._get_dev_server_url(self.react_refresh_url)
+        url = self._get_dev_server_url(self.react_refresh_url, False)
 
         return f"""<script type="module">
             import RefreshRuntime from '{url}'
