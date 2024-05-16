@@ -59,7 +59,7 @@ Then in your ViteJS config file :
 
 - Set the `base` options the same as your `STATIC_URL` Django setting.
 - Set the `build.outDir` path to where you want the assets to compiled.
-- Set the `build.manifest` options to `true`.
+- Set the `build.manifest` options to `manifest.json`.
 - As you are in SSR and not in SPA, you don't have an `index.html` that
   ViteJS can use to determine which files to compile. You need to tell it
   directly in `build.rollupOptions.input`.
@@ -70,7 +70,7 @@ export default defineConfig({
   base: "/static/",
   build: {
     ...
-    manifest: true,
+    manifest: "manifest.json",
     outDir: resolve("./assets"),
     rollupOptions: {
       input: {
@@ -183,18 +183,24 @@ like the previous tag.**
 ```
 {% vite_react_refresh %}
 ```
-If you're using React, this will generate the Javascript needed to support React HMR.
+If you're using React, this will generate the Javascript `<script/>` needed to support React HMR.
+
+```
+{% vite_react_refresh nonce="{{ request.csp_nonce }}" %}
+```
+
+Any kwargs passed to vite_react_refresh will be added to its generated `<script/>` tag. For example, if your site is configured with a Content Security Policy using [django-csp](https://github.com/mozilla/django-csp) you'll want to add this value for `nonce`.
 
 ### Custom attributes
 
 By default, all script tags are generated with a `type="module"` and `crossorigin=""` attributes just like ViteJS do by default if you are building a single-page app.
 You can override this behavior by adding or overriding this attributes like so :
 
-```
-{% vite_asset '<path to your asset>' foo="bar" hello="world" %}
+```jinja-html
+{% vite_asset '<path to your asset>' foo="bar" hello="world" data_turbo_track="reload" %}
 ```
 
-This line will add `foo="bar"` and `hello="world"` attributes.
+This line will add `foo="bar"`, `hello="world"`, and `data-turbo-track="reload"` attributes.
 
 You can also use context variables to fill attributes values :
 
@@ -368,13 +374,11 @@ If you are serving your static files with whitenoise, by default your files comp
 ```python
 import re
 
-# Vite generates files with 8 hash digits
 # http://whitenoise.evans.io/en/stable/django.html#WHITENOISE_IMMUTABLE_FILE_TEST
 
 def immutable_file_test(path, url):
-    # Match filename with 12 hex digits before the extension
-    # e.g. app.db8f2edc0c8a.js
-    return re.match(r"^.+[\.\-][0-9a-f]{8,12}\..+$", url)
+    # Match vite (rollup)-generated hashes, à la, `some_file-CSliV9zW.js`
+    return re.match(r"^.+[.-][0-9a-zA-Z_-]{8,12}\..+$", url)
 
 
 WHITENOISE_IMMUTABLE_FILE_TEST = immutable_file_test
@@ -382,9 +386,9 @@ WHITENOISE_IMMUTABLE_FILE_TEST = immutable_file_test
 
 ## Examples
 
-For an example of how to setup the project using the new multi-app configuration, please see this [multi-app example project](https://github.com/Niicck/django-vite-multi-app-example).
+For examples of how to setup the project in v3, please see [django-vite-examples](https://github.com/Niicck/django-vite-examples).
 
-For an example using the module-level legacy settings, please see this [example project here](https://github.com/MrBin99/django-vite-example).
+For another example that uses the module-level legacy settings, please see this [example project here](https://github.com/MrBin99/django-vite-example).
 
 ## Thanks
 
