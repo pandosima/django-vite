@@ -13,7 +13,7 @@ from django_vite.core.exceptions import (
     DjangoViteAssetNotFoundError,
     DjangoViteConfigNotFoundError,
 )
-from django_vite.core.tag_generator import Tag, TagGenerator, attrs_to_str
+from django_vite.core.tag_generator import Tag, TagGenerator
 
 DEFAULT_APP_NAME = "default"
 
@@ -231,6 +231,7 @@ class DjangoViteAppClient:
     def _get_dev_server_url(
         self,
         path: str,
+        static_resource: bool = True
     ) -> str:
         """
         Generates an URL to an asset served by the Vite development server.
@@ -241,14 +242,17 @@ class DjangoViteAppClient:
         Returns:
             str -- Full URL to the asset.
         """
-        static_url_base = urljoin(settings.STATIC_URL, self.static_url_prefix)
-        if not static_url_base.endswith("/"):
-            static_url_base += "/"
+        url_base = self.static_url_prefix
+        if (static_resource):
+            url_base = urljoin(settings.STATIC_URL, url_base)
+
+        if not url_base.endswith("/"):
+            url_base += "/"
 
         return urljoin(
             f"{self.dev_server_protocol}://"
             f"{self.dev_server_host}:{self.dev_server_port}",
-            urljoin(static_url_base, path),
+            urljoin(url_base, path),
         )
 
     def _get_production_server_url(self, path: str) -> str:
@@ -301,6 +305,7 @@ class DjangoViteAppClient:
             str -- The <script> tag and all <link> tags to import
                 this asset in your page.
         """
+
         if self.dev_mode:
             url = self._get_dev_server_url(path)
             return TagGenerator.script(
@@ -448,22 +453,23 @@ class DjangoViteAppClient:
             tags -- List of CSS tags.
             already_processed -- List of already processed css paths
         """
-        if already_processed is None:
-            already_processed = []
+        already_processed = already_processed or []
         tags: List[Tag] = []
         manifest_entry = self.manifest.get(path)
 
         for import_path in manifest_entry.imports:
-            new_tags, _ = self._generate_css_files_of_asset(
+            new_tags, new_already_processed = self._generate_css_files_of_asset(
                 import_path, already_processed, tag_generator
             )
             tags.extend(new_tags)
+            already_processed.extend(new_already_processed)
 
         for css_path in manifest_entry.css:
             if css_path not in already_processed:
                 url = self._get_production_server_url(css_path)
                 tags.append(tag_generator(url))
-                already_processed.append(css_path)
+
+            already_processed.append(css_path)
 
         return self.GeneratedCssFilesOutput(tags, already_processed)
 
@@ -582,22 +588,18 @@ class DjangoViteAppClient:
         if not self.dev_mode:
             return ""
 
-        url = self._get_dev_server_url(self.ws_client_url)
+        url = self._get_dev_server_url(self.ws_client_url, False)
 
         return TagGenerator.script(
             url,
             attrs={"type": "module", **kwargs},
         )
 
-    def generate_vite_react_refresh_url(self, **kwargs: Dict[str, str]) -> str:
+    def generate_vite_react_refresh_url(self) -> str:
         """
         Generates the script for the Vite React Refresh for HMR.
         Only used in development, in production this method returns
         an empty string.
-
-        Keyword Arguments:
-            **kwargs {Dict[str, str]} -- Adds new attributes to generated
-                script tags.
 
         Returns:
             str -- The script or an empty string.
@@ -607,10 +609,9 @@ class DjangoViteAppClient:
         if not self.dev_mode:
             return ""
 
-        url = self._get_dev_server_url(self.react_refresh_url)
-        attrs_str = attrs_to_str(kwargs)
+        url = self._get_dev_server_url(self.react_refresh_url, False)
 
-        return f"""<script type="module" {attrs_str}>
+        return f"""<script type="module">
             import RefreshRuntime from '{url}'
             RefreshRuntime.injectIntoGlobalHook(window)
             window.$RefreshReg$ = () => {{}}
@@ -822,7 +823,6 @@ class DjangoViteAssetLoader:
     def generate_vite_react_refresh_url(
         self,
         app: str = DEFAULT_APP_NAME,
-        **kwargs: Dict[str, str],
     ) -> str:
         app_client = self._get_app_client(app)
-        return app_client.generate_vite_react_refresh_url(**kwargs)
+        return app_client.generate_vite_react_refresh_url()
