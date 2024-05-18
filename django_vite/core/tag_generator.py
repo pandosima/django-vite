@@ -9,7 +9,7 @@ def attrs_to_str(attrs: Dict[str, str]):
     tag.
     """
     attrs_str = " ".join(
-        [f'{key.replace("_", "-")}="{value}"' value is not None else key.replace("_", "-") for key, value in attrs.items()]
+        [f'{key.replace("_", "-")}="{value}"' if value is not None else key.replace("_", "-") for key, value in attrs.items()]
     )
     return attrs_str
 
@@ -72,5 +72,5 @@ class TagGenerator:
     @staticmethod
     def prefetch(href: str, attrs: Dict[str, str]) -> Tag:
         attrs_str = attrs_to_str(attrs)
-        
+
         return f'<link rel="prefetch" href="{href}" {attrs_str} />'
