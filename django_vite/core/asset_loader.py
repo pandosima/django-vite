@@ -58,6 +58,9 @@ class ManifestEntry(NamedTuple):
 
     file: str
     src: Optional[str] = None
+    resourceType: Optional[str] = None
+    prefetch: Optional[bool] = False
+    preload: Optional[bool] = False
     isEntry: Optional[bool] = False
     isDynamicEntry: Optional[bool] = False
     css: Optional[List[str]] = []
@@ -315,7 +318,8 @@ class DjangoViteAppClient:
 
         tags: List[Tag] = []
         manifest_entry = self.manifest.get(path)
-        scripts_attrs = {"type": "module", "crossorigin": "", **kwargs}
+        tags.extend(self._prefetch_files())
+        scripts_attrs = {"type": "module", "crossorigin": None, **kwargs}
 
         # Add dependent CSS
         tags.extend(self._load_css_files_of_asset(path))
@@ -419,6 +423,30 @@ class DjangoViteAppClient:
             path,
             tag_generator=TagGenerator.stylesheet_preload,
         ).tags
+    
+    def _prefetch_files(
+        self,
+        **kwargs: Dict[str, str]
+    ) -> List[Tag]:
+        tags: List[Tag] = []
+        entries = self.manifest._entries
+        for path in entries:
+            entry = entries[path]
+            if entry.prefetch and not entry.isEntry and entry.resourceType in ['style', 'script']:
+                scripts_attrs = {
+                    "as": entry.resourceType,
+                    **kwargs
+                }
+                if entry.resourceType == 'script':
+                    scripts_attrs.update({"crossorigin": None,})
+                url = self._get_production_server_url(entry.file)
+                tags.append(
+                    TagGenerator.prefetch(
+                        url,
+                        attrs=scripts_attrs,
+                    )
+                )
+        return tags
 
     def _load_css_files_of_asset(
         self,
