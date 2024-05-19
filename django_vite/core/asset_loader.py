@@ -162,6 +162,7 @@ class ManifestClient:
             DjangoViteManifestError: if cannot load the file or JSON in file is
                 malformed.
         """
+        logger.debug(f"parse_manifest: {self.manifest_path}, dev_mode: {self.dev_mode}")
         if self.dev_mode:
             return self.ParsedManifestOutput()
 
@@ -179,6 +180,7 @@ class ManifestClient:
                         for key, value in manifest_entry_data.items()
                         if key in ManifestEntry._fields
                     }
+                    logger.debug(f"parse_manifest, path: {path}")
                     manifest_entry = ManifestEntry(**filtered_manifest_entry_data)
                     entries[path] = manifest_entry
                     if self.legacy_polyfills_motif in path:
@@ -204,7 +206,7 @@ class ManifestClient:
                 or if manifest was never parsed due to dev_mode=True.
         """
         if path not in self._entries:
-            logger.info(f"entries length: {len(self._entries)}")
+            logger.debug(f"entries length: {len(self._entries)}")
             raise DjangoViteAssetNotFoundError(
                 f"Cannot find {path} for app={self.app_name} in Vite manifest at "
                 f"{self.manifest_path}"
