@@ -15,6 +15,9 @@ from django_vite.core.exceptions import (
 )
 from django_vite.core.tag_generator import Tag, TagGenerator
 
+import logging
+logger = logging.getLogger(__name__)
+
 DEFAULT_APP_NAME = "default"
 
 
@@ -201,6 +204,7 @@ class ManifestClient:
                 or if manifest was never parsed due to dev_mode=True.
         """
         if path not in self._entries:
+            logger.info(f"entries length: {len(self._entries)}")
             raise DjangoViteAssetNotFoundError(
                 f"Cannot find {path} for app={self.app_name} in Vite manifest at "
                 f"{self.manifest_path}"
